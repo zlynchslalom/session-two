@@ -84,7 +84,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ completed: !item.completed }),
+        body: JSON.stringify({ completed: !Boolean(item.completed) }),
       });
 
       if (!response.ok) {
@@ -138,7 +138,7 @@ function App() {
   };
 
   const handleClearCompleted = async () => {
-    const completedItems = data.filter(item => item.completed);
+    const completedItems = data.filter(item => item.completed === 1);
     
     try {
       await Promise.all(
@@ -157,16 +157,16 @@ function App() {
 
   const getFilteredData = () => {
     if (filter === 'active') {
-      return data.filter(item => !item.completed);
+      return data.filter(item => item.completed === 0);
     }
     if (filter === 'completed') {
-      return data.filter(item => item.completed);
+      return data.filter(item => item.completed === 1);
     }
     return data;
   };
 
-  const activeCount = data.filter(item => !item.completed).length;
-  const completedCount = data.filter(item => item.completed).length;
+  const activeCount = data.filter(item => item.completed === 0).length;
+  const completedCount = data.filter(item => item.completed === 1).length;
   const filteredData = getFilteredData();
 
   return (
@@ -224,7 +224,7 @@ function App() {
               <ul className="todo-list">
                 {filteredData.length > 0 ? (
                   filteredData.map((item) => (
-                    <li key={item.id} className={item.completed ? 'completed' : ''}>
+                    <li key={item.id} className={item.completed === 1 ? 'completed' : ''}>
                       {editingId === item.id ? (
                         <div className="edit-mode">
                           <input
@@ -247,7 +247,7 @@ function App() {
                         <div className="view-mode">
                           <input
                             type="checkbox"
-                            checked={item.completed}
+                            checked={Boolean(item.completed)}
                             onChange={() => handleToggle(item.id)}
                           />
                           <span 
