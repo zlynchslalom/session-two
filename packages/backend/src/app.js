@@ -19,16 +19,17 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    completed INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
 
 // Insert some initial data
 const initialItems = ['Item 1', 'Item 2', 'Item 3'];
-const insertStmt = db.prepare('INSERT INTO items (name) VALUES (?)');
+const insertStmt = db.prepare('INSERT INTO items (name, completed) VALUES (?, ?)');
 
 initialItems.forEach(item => {
-  insertStmt.run(item);
+  insertStmt.run(item, 0);
 });
 
 console.log('In-memory database initialized with sample data');
@@ -52,7 +53,7 @@ app.post('/api/items', (req, res) => {
       return res.status(400).json({ error: 'Item name is required' });
     }
 
-    const result = insertStmt.run(name);
+    const result = insertStmt.run(name, 0);
     const id = result.lastInsertRowid;
 
     const newItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
@@ -60,6 +61,64 @@ app.post('/api/items', (req, res) => {
   } catch (error) {
     console.error('Error creating item:', error);
     res.status(500).json({ error: 'Failed to create item' });
+  }
+});
+
+app.patch('/api/items/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { completed } = req.body;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ error: 'Valid item ID is required' });
+    }
+
+    if (typeof completed !== 'boolean') {
+      return res.status(400).json({ error: 'Completed status must be a boolean' });
+    }
+
+    const existingItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    const updateStmt = db.prepare('UPDATE items SET completed = ? WHERE id = ?');
+    updateStmt.run(completed ? 1 : 0, id);
+
+    const updatedItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
+    res.json(updatedItem);
+  } catch (error) {
+    console.error('Error updating item:', error);
+    res.status(500).json({ error: 'Failed to update item' });
+  }
+});
+
+app.put('/api/items/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ error: 'Valid item ID is required' });
+    }
+
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ error: 'Item name is required' });
+    }
+
+    const existingItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    const updateStmt = db.prepare('UPDATE items SET name = ? WHERE id = ?');
+    updateStmt.run(name, id);
+
+    const updatedItem = db.prepare('SELECT * FROM items WHERE id = ?').get(id);
+    res.json(updatedItem);
+  } catch (error) {
+    console.error('Error updating item:', error);
+    res.status(500).json({ error: 'Failed to update item' });
   }
 });
 

@@ -12,8 +12,8 @@ const server = setupServer(
     return res(
       ctx.status(200),
       ctx.json([
-        { id: 1, name: 'Test Item 1', created_at: '2023-01-01T00:00:00.000Z' },
-        { id: 2, name: 'Test Item 2', created_at: '2023-01-02T00:00:00.000Z' },
+        { id: 1, name: 'Test Item 1', completed: 0, created_at: '2023-01-01T00:00:00.000Z' },
+        { id: 2, name: 'Test Item 2', completed: 1, created_at: '2023-01-02T00:00:00.000Z' },
       ])
     );
   }),
@@ -34,8 +34,35 @@ const server = setupServer(
       ctx.json({
         id: 3,
         name,
+        completed: 0,
         created_at: new Date().toISOString(),
       })
+    );
+  }),
+
+  // PATCH /api/items/:id handler
+  rest.patch('/api/items/:id', (req, res, ctx) => {
+    const { id } = req.params;
+    const { completed } = req.body;
+    
+    return res(
+      ctx.status(200),
+      ctx.json({
+        id: parseInt(id),
+        name: `Test Item ${id}`,
+        completed: completed ? 1 : 0,
+        created_at: new Date().toISOString(),
+      })
+    );
+  }),
+
+  // DELETE /api/items/:id handler
+  rest.delete('/api/items/:id', (req, res, ctx) => {
+    const { id } = req.params;
+    
+    return res(
+      ctx.status(200),
+      ctx.json({ message: 'Item deleted successfully', id: parseInt(id) })
     );
   })
 );
@@ -50,8 +77,8 @@ describe('App Component', () => {
     await act(async () => {
       render(<App />);
     });
-    expect(screen.getByText('React Frontend with Node Backend')).toBeInTheDocument();
-    expect(screen.getByText('Connected to in-memory database')).toBeInTheDocument();
+    expect(screen.getByText('To Do App')).toBeInTheDocument();
+    expect(screen.getByText('Keep track of your tasks')).toBeInTheDocument();
   });
 
   test('loads and displays items', async () => {
@@ -82,12 +109,12 @@ describe('App Component', () => {
     });
     
     // Fill in the form and submit
-    const input = screen.getByPlaceholderText('Enter item name');
+    const input = screen.getByPlaceholderText('What needs to be done?');
     await act(async () => {
       await user.type(input, 'New Test Item');
     });
     
-    const submitButton = screen.getByText('Add Item');
+    const submitButton = screen.getByText('Add TODO');
     await act(async () => {
       await user.click(submitButton);
     });
@@ -130,7 +157,72 @@ describe('App Component', () => {
     
     // Wait for empty state message
     await waitFor(() => {
-      expect(screen.getByText('No items found. Add some!')).toBeInTheDocument();
+      expect(screen.getByText('No TODOs yet. Add one above!')).toBeInTheDocument();
+    });
+  });
+
+  test('toggles item completion', async () => {
+    const user = userEvent.setup();
+    
+    await act(async () => {
+      render(<App />);
+    });
+    
+    // Wait for items to load
+    await waitFor(() => {
+      expect(screen.getByText('Test Item 1')).toBeInTheDocument();
+    });
+    
+    // Find and click the checkbox for the first item
+    const checkboxes = screen.getAllByRole('checkbox');
+    await act(async () => {
+      await user.click(checkboxes[0]);
+    });
+    
+    // The item should still be in the document (just toggled)
+    expect(screen.getByText('Test Item 1')).toBeInTheDocument();
+  });
+
+  test('filters items by status', async () => {
+    const user = userEvent.setup();
+    
+    await act(async () => {
+      render(<App />);
+    });
+    
+    // Wait for items to load
+    await waitFor(() => {
+      expect(screen.getByText('Test Item 1')).toBeInTheDocument();
+      expect(screen.getByText('Test Item 2')).toBeInTheDocument();
+    });
+    
+    // Click Active filter
+    const activeButton = screen.getByText('Active');
+    await act(async () => {
+      await user.click(activeButton);
+    });
+    
+    // Only active item should be visible
+    expect(screen.getByText('Test Item 1')).toBeInTheDocument();
+    
+    // Click Completed filter
+    const completedButton = screen.getByText('Completed');
+    await act(async () => {
+      await user.click(completedButton);
+    });
+    
+    // Only completed item should be visible
+    expect(screen.getByText('Test Item 2')).toBeInTheDocument();
+  });
+
+  test('displays active item count', async () => {
+    await act(async () => {
+      render(<App />);
+    });
+    
+    // Wait for items to load
+    await waitFor(() => {
+      expect(screen.getByText('1 item left')).toBeInTheDocument();
     });
   });
 });
